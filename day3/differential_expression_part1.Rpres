@@ -1,0 +1,163 @@
+Day 3: Comparing Samples (Part 1: Preparing Data)
+========================================================
+author: Katherine Cox
+date: January 13, 2017
+autosize: true
+
+Scatter Plots
+========================================================
+- What do points on the diagonal represent?
+- What does a point above the diagonal represent?
+- What does a point below the diagonal represent?
+- What are the x-values of the points in the left-most vertical stripe?
+- What are the y-values of the points in the left-most vertical stripe?
+- Why are there stripes only in the bottom left corner?
+
+Homework: Summary Statistics and Graphs
+========================================================
+-boxplot()
+
+Outline
+========================================================
+- Introduce DESeq
+- Loading R packages
+- Loading data for DESeq
+- Normalizing data
+- Estimating Variance
+
+Introducing DESeq
+========================================================
+- DESeq is an R package for analyzing differential expression
+  - Can be used for other comparisons too (ChIP-Seq)
+- Requires two kinds of inputs:
+  - read count files (*.htseq)
+  - a metadata file (midgut.tsv)
+
+Loading an R package
+========================================================
+```{r}
+library( "DESeq" )
+```
+- The first time you want to use a new R package, you usually need to install it (We've already installed DESeq for you)
+- *Every time* you want to use an R package you need to load it using library()
+- You can see your current R packages in the bottom right box of RStudio, under the "Packages" tab
+
+Check your directory and load the metadata
+========================================================
+- Your directory should be /home/example/yourname/day3
+```{r}
+getwd()
+```
+
+Check your directory and load the metadata
+========================================================
+- Load in the metadata file and store it as a data.frame
+- The file is located at /home/intro-rna/2017/midgut.tsv
+- The metadata will tell DESeq the names of all the .htseq files and how to group them
+
+DESeq expects a data.frame where:
+========================================================
+- Each row is an independent sample
+- The columns are 1) sample name, 2) file name, and 3) condition
+```{r}
+gut_metadata <- read.table("/home/intro-rna/2017/midgut.tsv", header=TRUE)
+gut_metadata
+```
+
+Load in the read count data
+========================================================
+```{r}
+?newCountDataSetFromHTSeqCount
+cds <- newCountDataSetFromHTSeqCount( gut_metadata, directory="/home/intro-rna/2017" )
+```
+- This creates a CountDataSet - a special data structure used by DESeq
+- DESeq assumes that all samples are independent, and that they have not been normalized
+- A few different programs can prepare read count files; we used HTSeq so we loaded in the data using the command for handling HTSeq files.
+
+What is this mysterious CountDataSet?
+========================================================
+```{r}
+cds
+```
+
+What is this mysterious CountDataSet?
+========================================================
+```{r}
+?`CountDataSet-class`
+```
+- "A CountDataSet...contains a count table, i.e., a matrix of integer data"
+- "Each row of the matrix corresponds to a gene...and each column to an experimental sample."
+- "[the count table] is accessible with the accessor function **counts()**"
+
+What is this mysterious CountDataSet?
+========================================================
+```{r}
+head(counts(cds))
+```
+
+What is this mysterious CountDataSet?
+========================================================
+```{r}
+?`CountDataSet-class`
+```
+- "The experimental conditions of the samples are stored in a factor...which can be read with the accessor function **conditions()**."
+
+What is this mysterious CountDataSet?
+========================================================
+```{r}
+conditions(cds)
+```
+
+Normalizing Data - Accounting for systemic differences between samples
+========================================================
+- Examples: # cells recovered, amount of RNA recovered, amount of RNA converted to sequencing library, amount of sequencing...
+```{r, echo=FALSE}
+v <- c(0,50,10,1,1000)
+df <- data.frame(v,2*v)
+colnames(df) <- c("Sample1", "Sample2")
+rownames(df) <- c("gene1", "gene2", "gene3", "gene4", "gene5")
+df
+```
+
+Normalizing Data
+========================================================
+```{r}
+cds <- estimateSizeFactors( cds )
+sizeFactors(cds)
+```
+
+Estimating Variance - How "noisy" is each gene?
+========================================================
+```{r, echo=FALSE}
+
+df <- data.frame(c(0,100,100,0),c(0,101,20,80),c(0,98,500,10),
+                 c(1000,100,400,500),c(990,103,150,200),c(1010,101,10,10), c("low", "low", "high", "high"), c("", "", "", ""))
+colnames(df) <- c("A1", "A2", "A3", "B1", "B2", "B3", "Noise", "Different?")
+rownames(df) <- c("gene1", "gene2", "gene3", "gene4")
+df
+```
+
+Estimating Dispersion - How "noisy" is each gene?
+========================================================
+```{r}
+cds <- estimateDispersions( cds )
+head( fData(cds) )
+```
+
+Summary: 
+========================================================
+- Normalizing deals with sample-to-sample variation
+  - Generates a correction factor for each *sample*
+- Estimating dispersions deals with the inherent variability in each gene
+  - Generates a dispersion factor for each *gene*
+- These steps are necessary before we can begin comparing read counts between different samples.
+
+
+Summary: Preparing Data in DESeq
+========================================================
+```{r, eval=FALSE}
+gut_metadata <- read.table("/home/intro-rna/2017/midgut.tsv", header=TRUE)
+cds <- newCountDataSetFromHTSeqCount( gut_metadata )
+cds <- estimateSizeFactors( cds )
+cds <- estimateDispersions( cds )
+```

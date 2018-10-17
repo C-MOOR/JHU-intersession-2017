@@ -1,0 +1,149 @@
+Hypothesis testing, p-values, and Multiple Test Correction
+========================================================
+author: Frederick J Tan
+date: 17 Nov 2016
+
+Goal: Learn why multiple testing is a problem
+========================================================
+
+p-value - probability of obtaining a result equal to or "more extreme" than what was observed if the null hypothesis is true (e.g. both conditions have the same mean)
+
+Question: What does rnorm() do?
+========================================================
+
+```{r}
+?rnorm
+```
+
+
+Question: What does rnorm() do?
+========================================================
+
+```{r}
+?rnorm
+```
+
+```{r}
+rnorm(1)
+```
+
+NOTE: your results will be different since this is random
+
+Run rnorm() multiple times
+========================================================
+
+```{r}
+rnorm(1)
+rnorm(1)
+rnorm(3)
+```
+
+Visualize many rnorm() runs
+========================================================
+
+```{r}
+hist( rnorm(100) )
+```
+
+
+Compare whether two samples are different
+========================================================
+
+```{r}
+t.test( rnorm(3), rnorm(3) )
+```
+
+
+Question: What's the p.value?
+========================================================
+
+```{r eval=FALSE}
+str( t.test( rnorm(3), rnorm(3) ) )
+```
+
+Question: What's the p.value?
+========================================================
+
+```{r eval=FALSE}
+str( t.test( rnorm(3), rnorm(3) ) )
+```
+```{r}
+t.test( rnorm(3), rnorm(3) )$p.value
+```
+
+
+Repeat two times
+========================================================
+
+```{r}
+replicate( 2, t.test( rnorm(3), rnorm(3) )$p.value )
+```
+
+
+Repeat ten times
+========================================================
+
+```{r}
+replicate( 10, t.test( rnorm(3), rnorm(3) )$p.value )
+```
+
+QUESTION: How would you visualize 1000 t.tests?
+
+Visualize 1000 t.tests
+========================================================
+
+```{r}
+hist( replicate( 1000, t.test( rnorm(3), rnorm(3) )$p.value ) )
+```
+
+What if the samples were actually different?
+========================================================
+
+```{r}
+hist( replicate( 1000, t.test( rnorm(3, mean=1), rnorm(3, mean=2) )$p.value ) )
+```
+
+Question: What if the means were more different (1 vs 3)?
+========================================================
+
+Question: What if the means were more different (1 vs 3)?
+========================================================
+
+```{r}
+hist( replicate( 1000, t.test( rnorm(3, mean=1), rnorm(3, mean=3) )$p.value ) )
+```
+
+Statistical power with larger samples (3 vs 10)
+========================================================
+
+```{r}
+hist( replicate( 1000, t.test( rnorm(10, mean=1), rnorm(10, mean=2) )$p.value ) )
+```
+
+Back to where we started
+========================================================
+
+```{r}
+hist( replicate( 1000, t.test( rnorm( 3, mean=1), rnorm(3, mean=1) )$p.value ), xlim=c(0,1) )
+```
+
+p.adjust() corrects for the fact that we're testing multiple times
+========================================================
+
+```{r}
+hist( p.adjust( replicate( 1000, t.test( rnorm( 3, mean=1), rnorm(3, mean=1) )$p.value ), method="BH" ), xlim=c(0,1) )
+```
+
+p.adjust() retains many of the results when samples are really different
+========================================================
+
+```{r eval=FALSE}
+hist( p.adjust( replicate( 1000, t.test( rnorm( 3, mean=1), rnorm(3, mean=4) )$p.value ), method="none" ), xlim=c(0,1) )
+```
+
+<center>-vs-</center>
+
+```{r eval=FALSE}
+hist( p.adjust( replicate( 1000, t.test( rnorm( 3, mean=1), rnorm(3, mean=4) )$p.value ), method="BH" ), xlim=c(0,1) )
+```
+

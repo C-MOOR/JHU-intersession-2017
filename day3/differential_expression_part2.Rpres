@@ -1,0 +1,210 @@
+Day 3: Comparing Samples (Part 2: Plots and Analysis)
+========================================================
+author: Katherine Cox
+date: January 13, 2017
+autosize: true
+
+Outline
+========================================================
+- Comparing all samples with PCA
+- Evaluating differential expression
+- Plotting differentially expressed genes
+- Exploring DESeq output
+
+PCA: Principle Component Analysis
+========================================================
+- Mathematical transformation of the data
+  - Find the "components" that produce the biggest separation of the samples
+  - Usually difficult to work backwards from PCA to find "why" the samples are separated
+- Useful for getting a "big picture" view of differences
+- Useful for detecting batch effects
+
+PCA with DESeq
+========================================================
+```{r, echo=FALSE}
+library("DESeq")
+gut_metadata <- read.table("/home/intro-rna/2017/midgut.tsv", header=TRUE)
+cds <- newCountDataSetFromHTSeqCount( gut_metadata, directory="/home/intro-rna/2017" )
+cds <- estimateSizeFactors( cds )
+cds <- estimateDispersions( cds )
+```
+- PCA works best with data that has been normalized and has had its variance adjusted
+- DESeq has a function for this:
+```{r}
+vsd <- varianceStabilizingTransformation( cds )
+```
+
+PCA with DESeq
+========================================================
+```{r}
+plotPCA( vsd, intgroup="condition" )
+```
+
+Calculating Differential Expression
+========================================================
+```{r, echo=FALSE}
+
+df <- data.frame(c(0,100,100,0),c(0,101,20,80),c(0,98,500,10),
+                 c(1000,100,400,500),c(990,103,150,200),c(1010,101,10,10), c("low", "low", "high", "high"), c("yes", "no", "no?", "yes?"))
+colnames(df) <- c("A1", "A2", "A3", "B1", "B2", "B3", "Noise", "Different")
+rownames(df) <- c("gene1", "gene2", "gene3", "gene4")
+df
+```
+- DESeq will give a score for each gene, to help us decide whether they're differentially expressed
+
+Calculating Differential Expression
+========================================================
+- Uses the results from estimateDispersions()
+  - Genes with high variability need to be "more different" to count as differentially expressed
+- Is calculated between two conditions, not all conditions
+```{r, cache=TRUE}
+a1_vs_p1 <- nbinomTest( cds, "a1", "p1" )
+```
+- Uses a statistical test based on the negative binomial distribution
+
+DESeq Differential Expression Results
+========================================================
+```{r}
+head(a1_vs_p1)
+```
+
+DESeq Differential Expression Results
+========================================================
+- foldChange: How different is expression of this gene between the two conditions?
+- padj: How likely is it that it's a fluke?
+  - Lower p-value means it's less likely to be due to chance and therefore more believeable
+  - We'll talk a lot more about this next week
+  
+Plotting Differential Expression: MA plots
+========================================================
+```{r}
+plotMA(a1_vs_p1[order(a1_vs_p1$padj),])
+```
+
+Plotting Differential Expression: MA plots
+========================================================
+- x-axis = A = Average expression of the gene
+- y-axis = M = log(ratio of expression), that is log(expression in B / expression in A)
+- Expect data to be centered along a horizontal line at 0
+- Expect most genes to be near zero
+- DESeq highlights differentially expressed genes in red
+
+Plotting Differential Expression: Volcano plots
+========================================================
+```{r}
+plot(a1_vs_p1$log2FoldChange, -log10(a1_vs_p1$padj))
+```
+
+Plotting Differential Expression: Volcano plots
+========================================================
+- x-axis = log(fold change)
+- y-axis = log(adjusted p-value)
+- Generally expect things with a large fold change to have a large p-value, leading to a V shape
+- "Noisy" genes will tend to have lower p-values, even if the foldchange is large
+
+Summarizing Differential Expression
+========================================================
+```{r}
+summary(a1_vs_p1)
+```
+
+How many genes are at least 10X higher in p1 than a1?
+========================================================
+- This is like asking how many genes had 0 reads. Create a TRUE/FALSE vector for whether foldChange >=10, then use sum() to find out how many were TRUE
+
+How many genes are at least 10X higher in p1 than a1?
+========================================================
+- This is like asking how many genes had 0 reads. Create a TRUE/FALSE vector for whether foldChange >=10, then use sum() to find out how many were TRUE
+```{r}
+p1_10X <- a1_vs_p1$foldChange >= 10
+sum(p1_10X)
+```
+
+How many genes are at least 10X higher in p1?
+========================================================
+```{r, eval=FALSE}
+?sum()
+```
+- "If na.rm is FALSE an NA or NaN value in any of the arguments will cause a value of NA or NaN to be returned, otherwise NA and NaN values are ignored."
+```{r}
+sum(p1_10X, na.rm = TRUE)
+```
+
+Which genes are at least 10X higher in p1?
+========================================================
+- We can use that same TRUE/FALSE vector to select only the rows that are TRUE, that is, only the rows where foldChange >= 10
+- We're selecting rows [ rows, columns]
+```{r}
+a1_vs_p1_highp1 <- a1_vs_p1[p1_10X,]
+```
+
+Which genes are at least 10X higher in p1?
+========================================================
+- Make sure it looks like we expect
+```{r}
+dim(a1_vs_p1_highp1)
+head(a1_vs_p1_highp1)
+```
+
+Let's remove those NAs
+========================================================
+```{r}
+not_na <- !is.na(a1_vs_p1_highp1$foldChange)
+a1_vs_p1_highp1 <- a1_vs_p1_highp1[not_na,]
+dim(a1_vs_p1_highp1)
+head(a1_vs_p1_highp1)
+```
+
+What are the 100 genes with the highest foldChange?
+========================================================
+- Sorting in R is done using the **order()** command
+```{r, eval=FALSE}
+?order
+```
+- We mostly care about the first three arguments
+  - What are we ordering?
+  - Do NAs go at the front or the back (TRUE/FALSE)
+  - Increasing or decreasing? (TRUE/FALSE)
+
+How does order() work?
+========================================================
+- The **order()** command creates a vector describing how to sort x.  It doesn't actually change x.
+```{r}
+x <- c(1, 86, 37, 4, 52)
+order(x)
+```
+- In this case, to put x in order, we should grab the first item, then the fourth item, then the third item...
+
+We can use the vector generated by order() to sort a vector or data.frame
+========================================================
+```{r}
+order_of_x <- order(x)
+sorted_x <- x[order_of_x]
+sorted_x
+x
+```
+
+Find the 100 genes with the highest foldChange?
+========================================================
+- We can find this by ordering the data.frame by the foldChange column, then subsetting the top 100 genes
+```{r}
+a1_vs_p1_sorted_fc <- a1_vs_p1[order(a1_vs_p1$foldChange),]
+head(a1_vs_p1_sorted_fc)
+```
+
+Find the 100 genes with the highest foldChange?
+========================================================
+- We can find this by ordering the data.frame by the foldChange column, then subsetting the top 100 genes
+```{r}
+top_100_fc <- a1_vs_p1_sorted_fc[1:100,]
+head(top_100_fc)
+```
+
+Summary
+========================================================
+```{r, eval=FALSE}
+vsd <- varianceStabilizingTransformation( cds )
+plotPCA( vsd, intgroup="condition" )
+nbinomTest( cds, "condition1", "condition2" )
+sorted_x <- x[order(x$colname),]
+```

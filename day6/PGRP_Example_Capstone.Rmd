@@ -1,0 +1,212 @@
+---
+title: "PGRP gene expression in the Drosophila melanogaster midgut"
+output: html_document
+---
+
+```{r, message=FALSE}
+# load libraries without printing a bunch of messages
+library( "biomaRt" )
+library( "DESeq" )
+```
+
+# Introduction
+Peptidoglycan recognition proteins (PRGPs) are proteins involved in the innate immune response to bacteria, and are present in a wide range of species including insects and vertebrates.  Previously, Marianes and Spradling (2013) noted that some PGRP genes are differentially expressed across the Drosophila midgut. The Drosophila midgut can be divided into several morphologically distinct regions.  PGRP-SC2 expression is elevated in the Fe (iron) region and PGRP-SC1b is elevated in LFCs (large flat cells).  PGRPs in the Drosophila gut are thought to interact with the gut microbiome.  In this report we analyze expression of all PGRP genes across all gut regions to determine whether there is a general pattern of PGRP gene expression across the Drosophila midgut.
+
+
+To analyze PGRP gene expression in the Drosophila midgut, we used two independently collected datasets.  Marianes and Spradling (2013) divided the midgut into 10 regions, and extracted RNA from the bulk cell population of different regions.  Dutta et al. (2015) similarly divided the midgut into 5 regions, though the regions specified by Dutta are larger and do not always have the same boundaries as those described by Marianes and Spradling.  Dutta et al. further separated each of their 5 regions by cell type using fluorescence-activated cell sorting (FACS) and extracted RNA from the resulting sorted cell populations.
+
+
+In this analysis, we obtained a **list of PGRP genes** using BiomaRt.  We graphed **normalized gene expression across gut regions** to examine patterns in gene expression across the Drosophila midgut using the data collected by Marianes and Spradling (2013).  We then looked more closely at PRGP gene expression in R3, as this region had the highest levels of PGRP gene expression.  Within R3, we examine **PGRP gene expression across 5 cell types** using the data collected by Dutta et al. (2015).
+
+## List of PRGP genes
+```{r, cache=TRUE}
+# Get the FBgns for all genes
+FBgns <- read.table("/home/intro-rna/2017/SRR891601.htseq")$V1
+
+# Get all gene names using biomaRt
+ensembl <- useMart( "ENSEMBL_MART_ENSEMBL" )
+ensembl <- useDataset( "dmelanogaster_gene_ensembl", mart=ensembl )
+genenames <- getBM( attributes=c( "flybase_gene_id", "external_gene_name" ),
+                   filters="flybase_gene_id", 
+                   values=FBgns, 
+                   mart=ensembl )
+
+# Make a T/F vector for whether each gene is a PGRP
+PGRPs <- grepl( "PGRP", genenames$external_gene_name )
+
+# Make a data.frame containing the FBgns and names of all PGRP genes
+PGRPs <- genenames[PGRPs,]
+
+# Print out all PGRP genes
+PGRPs
+```
+
+## Expression of PRGP genes across the Drosophila midgut
+We graphed normalized, averaged gene expression for each PGRP gene across all regions of the gut.
+```{r}
+# Use DESeq to normalize the read counts for each sample so they can be averaged
+gut_metadata <- read.table( "/home/intro-rna/2017/midgut.tsv", header=TRUE )
+cds <- newCountDataSetFromHTSeqCount( gut_metadata, directory="/home/intro-rna/2017/" )
+cds <- estimateSizeFactors( cds )
+
+# make a data.frame of read counts in the correct orientation for the aggregate function
+# Select only the rows (FBgns) for which there is a matching FBgn in the PGRPs data.frame
+gene_counts <- data.frame(t(counts(cds, normalized=TRUE)[match(PGRPs$flybase_gene_id,FBgns),]))
+
+# Rename the columns from FBgns to gene names
+colnames(gene_counts) <- PGRPs$flybasename_gene
+
+# make a new data.frame of the mean count for each region 
+mean_counts <- aggregate(gene_counts,by=list(gut_metadata$condition), mean)
+
+# Reorder the rows in physiological order
+gut_regions <- c("a1", "a1-3", "a2-3", "Cu", "CuLFCFe", "LFCFe", "Fe", "p1", "p1-4", "p2-4")
+order_mean_counts <- match(gut_regions, mean_counts$Group.1)
+mean_counts <- mean_counts[order_mean_counts,]
+
+# set up a list of 13 colors for the 13 PGRP genes
+colors=c("pink", "red", "goldenrod1", "orange", "yellow", "brown", "lightgreen", "green", "lightblue", "blue", "plum", "purple", "cyan")
+
+par(mar=c(4,4,5,8.2))
+plot(1, type='n', xaxt='n', xlim=c(1,10), ylim=c(0, max(mean_counts[,-1])), xlab="Midgut Region", ylab="Gene Expression", main="PGRP Expression \n Across the Drosophila Midgut")
+for (gene in c(2:ncol(mean_counts))){
+  lines(mean_counts[gene], type='l', xaxt='n', col=colors[gene-1])
+  }
+axis( 1, at=1:10, labels=mean_counts$Group.1, cex.axis = 0.6)
+legend(10.7, max(mean_counts[,-1]), colnames(mean_counts[,-1]), fill=colors, xpd=TRUE)
+```
+
+
+Expression of PGRP-SC2 is much higher than expression of any other PRGP gene.  We scaled the PGRP gene expression levels so that we could examine the directional pattern of expression for all PGRP genes in a single plot.
+```{r}
+# scale counts so they can be plotted on one graph
+scaled_counts <- apply(mean_counts[,-1], 2, function(x) x/max(x))
+
+par(mar=c(4,4,5,8.2))
+plot(1, type='n', xaxt='n', xlim=c(1,10), ylim=c(0, max(scaled_counts)), xlab="Midgut Region", ylab="Scaled Gene Expression", main="Scaled PGRP Expression \n Across the Drosophila Midgut")
+for (gene in c(1:ncol(scaled_counts))){
+  lines(scaled_counts[,gene], type='l', xaxt='n', col=colors[gene])
+  }
+axis( 1, at=1:10, labels=mean_counts$Group.1, cex.axis = 0.6)
+legend(10.7, max(scaled_counts), colnames(scaled_counts), fill=colors, xpd=TRUE)
+```
+
+
+Overall, there is no clear pattern of PGRP gene expression across the gut.  However, we also plotted subsets of genes based on their expression levels (not shown), and found a subset of PGRPs with expression patterns similar to PGRP-SC2 
+```{r}
+up_in_LFCFe <- (colnames(mean_counts[,-1]) %in% c("PGRP-SC2", "PGRP-LB", "PGRP-SD", "PGRP-SC1a", "PGRP-SC1b", "PGRP-SB1"))
+
+sc1 <- scaled_counts[,up_in_LFCFe]
+sc2 <- scaled_counts[,!up_in_LFCFe]
+
+par(mar=c(4,4,5,8.2))
+plot(1, type='n', xaxt='n', xlim=c(1,10), ylim=c(0, max(scaled_counts)), xlab="Midgut Region", ylab="Scaled Gene Expression", main="Scaled PGRP Expression \n Across the Drosophila Midgut")
+for (gene in c(1:ncol(sc1))){
+  lines(sc1[,gene], type='l', xaxt='n', col="blue")
+  }
+for (gene in c(1:ncol(sc2))){
+  lines(sc2[,gene], type='l', xaxt='n', col="pink")
+  }
+axis( 1, at=1:10, labels=mean_counts$Group.1, cex.axis = 0.6)
+```
+
+
+By examining subsets of genes, we found that genes **PGRP-LB**, **PGRP-SD**, **PGRP-SB1**, **PGRP-SC1a**, and **PGRP-SC1b** showed patterns similar to PGRP-SC2, with high expression in the LFC and Fe regions.  These genes also tended to be more highly expressed than the other PGRP genes.  These genes are shown in blue.
+
+## Expression of PGRP genes in different cell types within R3 (Cu and LFC)
+We then examined PRGP gene expression in different cell types for region R3, which contains the LFC region.
+
+```{r}
+
+facs_metadata <- read.table( "/home/intro-rna/2017/facs.tsv", header=TRUE )
+
+# Make a T/F vector for whether each sample is from R3, and make a data.frame of all the R3 samples
+r3 <- grepl( "R3", facs_metadata$condition )
+r3 <- facs_metadata[r3,]
+
+#Exclude the ESG samples
+r3 <- r3[!grepl( "ESG", r3$condition ),]
+
+# Use DESeq to normalize the read counts for each sample so they can be averaged
+cds <- newCountDataSetFromHTSeqCount( r3, directory="/home/intro-rna/2017/" )
+cds <- estimateSizeFactors( cds )
+
+# make a data.frame of read counts in the correct orientation for the aggregate function
+# Select only the rows (FBgns) for which there is a matching FBgn in the PGRPs data.frame
+gene_counts <- data.frame(t(counts(cds, normalized=TRUE)[match(PGRPs$flybase_gene_id,FBgns),]))
+
+# Rename the columns from FBgns to gene names
+colnames(gene_counts) <- PGRPs$flybasename_gene
+
+# make a new data.frame of the mean count for each region 
+mean_counts <- aggregate(gene_counts,by=list(r3$condition), mean)
+
+par(mar=c(4,4,5,8.2))
+plot(1, type='n', xaxt='n', xlim=c(1,5), ylim=c(0, max(mean_counts[,-1])), xlab="Cell Type", ylab="Gene Expression", main="PGRP Expression by Cell Type")
+for (gene in c(2:ncol(mean_counts))){
+  lines(mean_counts[gene], type='l', xaxt='n', col=colors[gene-1])
+  }
+axis( 1, at=1:5, labels=mean_counts$Group.1)
+legend(5.3, max(mean_counts[,-1]), colnames(mean_counts[,-1]), fill=colors, xpd=TRUE)
+```
+
+
+As in the bulk data, PGRP-SC2 is expressed at a much higher level than other PGRP genes, though in this data, the difference is less extreme.  We again scaled the data to look for trends in expression across cell types.
+```{r}
+
+# scale counts so they can be plotted on one graph
+scaled_counts <- apply(mean_counts[,-1], 2, function(x) x/max(x))
+
+par(mar=c(4,4,5,8.2))
+plot(1, type='n', xaxt='n', xlim=c(1,5), ylim=c(0, max(scaled_counts)), xlab="Cell Type", ylab="Scaled Gene Expression", main="Scaled PGRP Expression by Cell Type")
+for (gene in c(1:ncol(scaled_counts))){
+  lines(scaled_counts[,gene], type='l', xaxt='n', col=colors[gene])
+  }
+axis( 1, at=1:5, labels=mean_counts$Group.1)
+legend(5.3, max(scaled_counts), colnames(scaled_counts), fill=colors, xpd=TRUE)
+```
+
+
+Again we see no general trend for PGRPs.  We then examined those genes which were highly expressed in the LFC and Fe regions (PGRP-SC2, PGRP-LB, PGRP-SD, PGRP-SB1, PGRP-SC1a, and PGRP-SC1b).
+```{r}
+up_in_EE <- (colnames(mean_counts[,-1]) %in% c("PGRP-SC2", "PGRP-SC1a", "PGRP-SC1b"))
+
+up_in_other <- (colnames(mean_counts[,-1]) %in% c("PGRP-LB", "PGRP-SD", "PGRP-SB1"))
+
+sc1 <- scaled_counts[,!up_in_LFCFe]
+sc2 <- scaled_counts[,up_in_EE]
+sc3 <- scaled_counts[,up_in_other]
+
+
+par(mar=c(4,4,5,8.2))
+plot(1, type='n', xaxt='n', xlim=c(1,5), ylim=c(0, max(scaled_counts)), xlab="Cell Type", ylab="Scaled Gene Expression", main="Scaled PGRP Expression by Cell Type")
+for (gene in c(1:ncol(sc1))){
+  lines(sc1[,gene], type='l', xaxt='n', col="pink")
+  }
+for (gene in c(1:ncol(sc2))){
+  lines(sc2[,gene], type='l', xaxt='n', col="blue")
+  }
+for (gene in c(1:ncol(sc3))){
+  lines(sc3[,gene], type='l', xaxt='n', col="lightblue")
+  }
+axis( 1, at=1:5, labels=mean_counts$Group.1)
+```
+
+
+While PGRP-SC2, PRGP-SC1a, and PGRP-SC1b (dark blue) are most highly expressed in EE cells, PGRP-LB, PGRP-SD, and PGRP-SB1 (light blue) do not follow this pattern.
+
+## Conclusions and Future Directions
+Analysis of both the Marianes and Spradling data and the Dutta et al. data showed that PGRP-SC2 was much more highly expressed than other PGRPs in the Drosophila midgut.  As reported by Marianes and Spradling, expression of PGRP-SC2 peaked in the Fe region.  More generally, a subset of PGRP genes appeared to have a similar expression pattern to PGRP-SC2, and these tended to be those PGRP genes with higher expression levels in the gut.  Together these data suggest that the LFC and Fe regions of the midgut may be most active in interacting with gut bacteria.  However, in examining cell-type specific data, we found no clear pattern for PRGP gene expression even among the subset of highly expressed genes.  Perhaps different PGRPs are used by the different cell types to direct cell-types-specific responses to bacteria.
+
+
+While this analysis revealed some interesting patterns in PGRP gene, there are several directions in which we could extend our exploration.  First, we could examine the cell-type specificity of PGRPs in other regions, beyond R3, to see whether certain PGRPs are consistently expressed by the same cell type.  Additionally, we could analyze the statistical significance of the differences we observed using DEseq.  Finally, we could extend our analysis to include other genes involved in the immune response to bacteria, using biomaRt to identify other genes of interest.
+
+## Author Contributions and Acknowledgements
+Katie Cox  authored the prose and contributed code for generating lineplots of gene expression.  Fred Tan contributed code for obtaining the list of PGRP genes and assisted with development of the lineplot code.  Data collected by Marianes and Spradling (2013) and Dutta et al. (2015).  Data was obtained through the C-MOOR platform.
+
+
+The following programs and packages were used for data analysis:
+* R
+* RStudio
+* biomaRt
+* DESeq

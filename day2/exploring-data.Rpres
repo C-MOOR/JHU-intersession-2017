@@ -1,0 +1,288 @@
+Day 2: Exploring a Single Sample
+========================================================
+author: Katherine Cox
+date: January 11, 2017
+autosize: true
+
+Overview
+========================================================
+- Review: R Basics
+- Loading data
+- Summarizing data
+- Plotting data
+- Assignment: Plotting RNAseq read counts
+
+Files for today
+========================================================
+- **midgut.tsv**
+    - Metadata describing the 30 RNAseq data files
+- **SRR891604.htseq**
+    - A single read count file
+
+Questions about Swirl Tutorial?
+========================================================
+
+Reminder: Variables vs. Strings
+========================================================
+Which of these stores the string **Katie** in a variable called **my_name**?
+- A) my_name <- Katie
+- B) my_name <- "Katie"
+- C) "my_name" <- Katie
+- D) "my_name" <- "Katie"
+
+```{r, echo=FALSE}
+my_name = "Katie"
+```
+
+Reminder: Variables vs. Strings
+========================================================
+- If you don't use quotes, R treats it as a variable and looks for it in your environment.
+- You can see what's in your environment in the top right section of RStudio
+- If there's no matching variable name in your environment, R will throw an error
+
+Set your working directory
+========================================================
+- This is where R will save files (and look for files)
+- Should be "/home/example/yourname/day2"
+```{r}
+getwd()
+```
+```{r, eval=FALSE}
+setwd("/home/example/yourname/day2")
+getwd()
+```
+
+Load midgut.tsv and store it
+========================================================
+
+```{r}
+flygut <- read.table("/home/intro-rna/2017/midgut.tsv")
+```
+
+- Use quotes for the file name
+- Don't forget to store the data in a variable
+- You can use TAB completion
+
+Reminder: Data.frames
+========================================================
+```{r}
+flygut
+```
+
+Reminder: Subsetting Rows and Columns
+========================================================
+```{r}
+flygut[1,]
+flygut[,1]
+```
+
+The first row is the column names, not data
+========================================================
+```{r}
+flygut
+```
+
+Reload midgut.tsv and store it
+========================================================
+
+```{r}
+?read.table
+flygut <- read.table("/home/intro-rna/2017/midgut.tsv", header=TRUE)
+```
+
+- Use quotes for the file name
+- set header=TRUE
+- Don't forget to store the data in a variable
+- You can use the up arrow to reuse a previous command
+
+Column names are fixed!
+========================================================
+```{r}
+flygut
+```
+
+Look at the first few rows
+========================================================
+```{r}
+head(flygut)
+```
+
+Look at the last few rows
+========================================================
+```{r}
+tail(flygut)
+```
+
+Check the dimensions
+========================================================
+```{r}
+dim(flygut)
+```
+
+Look at the structure of the data
+========================================================
+```{r}
+str(flygut)
+```
+
+Look at a summary of your data
+========================================================
+```{r}
+summary(flygut)
+```
+
+Loading an HTseq file
+========================================================
+- Load the first CuLFCFe file **SRR891604.htseq**
+    - Use read.table()
+    - File location: /home/intro-rna/2017/SRR891604.htseq
+    - HINT: Use TAB completion
+    - HINT: There is no header line
+- Check if it looks okay using head()
+
+Loading an HTseq file
+========================================================
+- What is the first column?
+- What is the second column?
+- How many rows are there?
+    - How many fly genes are there?
+- How do you view the last few rows?
+    
+Loading an HTseq file
+========================================================
+- What's in the last few rows?
+- How would you subset everything except the last 5 rows?
+  - am4_assigned_reads <- am4[ ? , ? ]
+
+- Subset everything except the last 5 rows and store it in a new dataframe
+- Check to see if you were successful using tail()
+
+Subsetting the assigned reads
+========================================================
+```{r}
+am4 <- read.table("/home/intro-rna/2017/SRR891604.htseq")
+am4_assigned_reads <- am4[1:17559,]
+tail(am4_assigned_reads)
+```
+
+Plotting the data: Default plot
+========================================================
+```{r}
+?plot
+```
+
+Plotting the data: Default plot
+========================================================
+```{r, eval=FALSE}
+?plot
+plot(am4_assigned_reads, main="am4 Gene Expression")
+```
+- Gives us an idea of the shape of our data
+    - Lots of entries, maybe we should bin them
+    - A few data points have very high values
+      - We could try excluding these
+      - We could try plotting on a log scale
+      
+Plotting binned data: hist()
+========================================================
+```{r}
+?hist
+```
+
+Plotting binned data: hist()
+========================================================
+```{r}
+hist(am4_assigned_reads[,2])
+```
+
+Plotting binned log(data): hist()
+========================================================
+```{r}
+hist(log(am4_assigned_reads[,2]))
+```
+
+Plotting binned log(data): hist()
+========================================================
+- What is the x-axis?
+- What is the y-axis?
+- What does one bar represent?
+- What base is the log() command using?
+  - Look at the documentation using ?log
+
+Plotting binned log(data): hist() Worksheet
+========================================================
+- Go to "In-class Poll 2" on the C-MOOR website
+- Working in pairs, answer the questions about the histogram
+
+Plotting binned log(data): hist()
+========================================================
+- Which gene has a higher read count?
+- What is the read count of gene B relative to gene A?
+- Approximately how many genes have read counts similar to gene B? How many are similar to gene A? (round to the nearest 500).
+- What if genes A and B were 2 units apart on a log2 plot instead of a log10 plot?  What would be the read count of gene B relative to gene A?
+
+How many genes are in this graph?
+========================================================
+- Add up the total number of genes in this graph (estimate the height of each bar by rounding to the nearest 1000).
+- How many genes are in the htseq file?
+- Approximately how many genes are “missing” from this graph?
+
+How many genes are in this graph?
+========================================================
+- How many genes have a read count of zero?
+```{r, eval=FALSE}
+sum(am4_assigned_reads[,2] == 0)
+```
+- What is log(0)? What does log(0) evaluate to in R?
+- This is an example of *failing silently* - the hist() function just ignored any values it couldn’t plot, without giving you any warning.
+
+Exporting a graph
+========================================================
+- In the bottom right box of RStudio, under "Plots", click "Export"
+- Choose "Save as Image"
+- Name it something informative
+
+Summary: Loading data
+========================================================
+- Make sure you're in the right directory using getwd() and setwd()
+    - For this class, that will usually be "home/example/yourname"
+- Load data using read.table()
+    - Use quotes for the file name
+    - Check if there's a header line
+    - ?read.table if you need help
+    
+Summary: Subsetting
+========================================================
+- df[row,]
+- df[,column]
+- df[ row, column]
+- df[ row:row, ]
+- df[, column:column ]
+- df[ row:row, column:column ]
+    
+Summary: Summarizing Data
+========================================================
+- head()
+- tail()
+- dim()
+- str()
+- summary()
+
+Summary: Plotting Single Samples
+========================================================
+- plot()
+- hist()
+- log()
+- hist(log())
+- Be careful about zeroes on log plots!
+
+Homework
+========================================================
+- Choose one set of the fly gut samples to report on
+  - Sign up using the link on C-MOOR
+- Download the instructions (pdf)
+- Fill out the worksheet (Google poll) with summary data for your samples and submit it
+  - Link is on C-MOOR
+- Export your histograms and plots in RStudio (give them clear names)
+
+- Read three paragraphs from the Marianes and Spradling paper

@@ -1,0 +1,92 @@
+---
+title: "Day 1 - Test driveR"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+A quick tour highlighting some strengths of R:
+
+- generate summary statistics quickly
+- transform data easily
+- create plots with a single command
+
+### Let's load some data!!
+
+```{r}
+counts <- read.csv( "/home/intro-rna/2017/mean.counts.csv", row.names=1 )
+```
+
+### Let's see what we just loaded!!
+
+```{r}
+str( counts )
+```
+
+### Let's calculate some statistics!!
+
+```{r}
+summary( counts$a1 )
+```
+
+- Why does median != mean?
+- What is one way to handle extreme values? 
+
+### Let's log-transform 10 columns and 17,559 rows!!!
+
+```{r}
+counts <- log2( counts + 1 )
+summary( counts$a1 )
+```
+
+### Let's see how many values are greater than the median!!
+
+```{r}
+table( counts$a1 > 3.403 )
+```
+
+### Let's visualize why median != mean by making a histogram!!
+
+```{r}
+hist( counts$a1 )
+```
+
+### Let's visually compare two samples using a scatterplot!!
+
+```{r}
+plot( counts$a1, counts$p1 )
+```
+
+### Let's color all PGRP genes red!!
+
+```{r}
+PGRPs <- grepl( "PGRP", rownames( counts ) )
+table( PGRPs )
+
+PGRPs <- c(NA,"red")[as.factor( PGRPs )]
+
+plot( counts$Cu, counts$Fe )
+points( counts$Cu, counts$Fe, col=PGRPs )
+```
+
+### Let's plot a1 against Cu, Fe, and p1!!
+
+```{r}
+vs <- c( "Cu", "Fe", "p1" )
+lapply( vs, function(x) plot( counts$a1, counts[,x], main=x ) )
+```
+
+### Let's calculate statistics for all samples!!
+
+```{r}
+summary( counts )
+```
+
+### Let's visualize all samples with boxplots!!
+
+```{r}
+boxplot( counts )
+```
+
